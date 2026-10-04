@@ -1,15 +1,775 @@
-Date,Day,Reels_Count,Time_Seconds,Fast_Skips,Distance_Meters,Peak_Hour
-2026-09-21,Mon,59,1003,12,8.6,21:00
-2026-09-22,Tue,61,1098,21,8.8,21:00
-2026-09-23,Wed,34,476,12,4.9,21:00
-2026-09-24,Thu,48,624,11,7,21:00
-2026-09-25,Fri,55,1155,16,8,21:00
-2026-09-26,Sat,85,1785,29,12.3,21:00
-2026-09-27,Sun,85,1530,21,12.3,21:00
-2026-09-28,Mon,53,1113,13,7.7,21:00
-2026-09-29,Tue,34,544,11,4.9,21:00
-2026-09-30,Wed,56,672,18,8.1,21:00
-2026-10-01,Thu,57,912,19,8.3,21:00
-2026-10-02,Fri,32,512,8,4.6,21:00
-2026-10-03,Sat,49,833,15,7.1,21:00
-2026-10-04,Sun,47,872,11,6.8,9:00
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ReelTrack - Instagram Reels & Screen Time Dashboard</title>
+  <meta name="description" content="Track daily and weekly Instagram reels scrolled, screen time, and mindful limits." />
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Chart.js CDN for clean charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-start antialiased selection:bg-rose-500/20 selection:text-rose-300 sm:py-6">
+
+  <!-- Desktop Device Frame Wrapper -->
+  <div id="device-container" class="w-full max-w-[430px] sm:h-[880px] bg-slate-950 flex flex-col overflow-hidden sm:rounded-[44px] sm:border-[10px] sm:border-slate-800 sm:shadow-2xl sm:shadow-black sm:ring-1 sm:ring-slate-700/60 relative">
+
+    <!-- Android Punch Hole Camera (on desktop) -->
+    <div class="hidden sm:block absolute top-2.5 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-black border border-slate-800 z-50 pointer-events-none shadow-inner"></div>
+
+    <!-- Android Status Bar -->
+    <div class="w-full h-11 px-5 flex items-center justify-between text-xs text-slate-300 select-none shrink-0 z-40 bg-slate-950/90 backdrop-blur-md pt-1">
+      <div class="flex items-center gap-2">
+        <span id="live-clock" class="font-semibold tracking-tight font-mono text-[13px] text-slate-100">09:41</span>
+        <span class="flex items-center gap-1 text-[11px] text-emerald-400 font-mono">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          Hook Active
+        </span>
+      </div>
+      <div class="flex items-center gap-2 text-slate-400">
+        <span class="text-[10px] font-bold tracking-wider">5G</span>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg>
+        <span class="text-[10px] font-mono">88%</span>
+        <div class="w-4 h-2.5 border border-slate-400 rounded-sm p-[1px] flex items-center">
+          <div class="h-full w-4/5 bg-emerald-400 rounded-xs"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Scrollable App Canvas -->
+    <main id="app-canvas" class="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar pb-20 relative">
+
+      <!-- ================= TAB 1: TODAY DASHBOARD ================= -->
+      <section id="tab-dashboard" class="p-5 space-y-5">
+        <!-- Header -->
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="flex items-center gap-2 text-xs text-slate-400 mb-0.5">
+              <span id="today-day-label" class="text-slate-300 font-medium">Today</span>
+              <span>·</span>
+              <span id="today-date-label">Oct 4, 2026</span>
+            </div>
+            <h1 class="text-xl font-bold tracking-tight text-white">Instagram Reels</h1>
+          </div>
+          <!-- Streak Badge -->
+          <div class="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-medium">
+            <span class="text-amber-400">🔥</span>
+            <span id="streak-count" class="font-mono text-white font-bold">5</span>
+            <span class="text-slate-400">day streak</span>
+          </div>
+        </div>
+
+        <!-- Hero Circular Limit Gauge -->
+        <div class="relative rounded-3xl bg-slate-900/80 border border-slate-800 p-6 flex flex-col items-center justify-center text-center shadow-lg shadow-black/40">
+          <div class="relative w-44 h-44 flex items-center justify-center">
+            <svg class="w-full h-full -rotate-90 transform" viewBox="0 0 160 160">
+              <!-- Background circle -->
+              <circle cx="80" cy="80" r="68" stroke="currentColor" stroke-width="11" fill="transparent" class="text-slate-800/80"/>
+              <!-- Animated Progress circle -->
+              <circle id="gauge-circle" cx="80" cy="80" r="68" stroke="#10b981" stroke-width="11" stroke-dasharray="427.25" stroke-dashoffset="120" stroke-linecap="round" fill="transparent" class="transition-all duration-700 ease-out"/>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+              <span id="hero-reel-count" class="text-4xl font-extrabold tracking-tight text-white font-mono tabular-nums">38</span>
+              <span class="text-xs text-slate-400 font-medium">of <span id="hero-limit-count" class="text-slate-200 font-mono">45</span> reels</span>
+              <span id="hero-percent-label" class="text-[11px] font-semibold mt-1 font-mono tracking-tight text-emerald-400">84% limit</span>
+            </div>
+          </div>
+
+          <div class="mt-4 text-center">
+            <div id="gauge-status-title" class="text-sm font-semibold text-white flex items-center justify-center gap-1.5">
+              <span>Mindful Scrolling</span>
+            </div>
+            <p id="gauge-status-subtitle" class="text-xs text-slate-400 mt-0.5">7 reels left before daily limit</p>
+          </div>
+
+          <!-- Quick Launch Simulator CTA -->
+          <button onclick="switchTab('simulator')" class="mt-4 w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white text-xs font-semibold flex items-center justify-center gap-2 shadow-md shadow-rose-950/40 active:scale-[0.98] transition-all">
+            <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <span>Open Reel Simulator & Swipe</span>
+          </button>
+        </div>
+
+        <!-- 2x2 Clean Summary Cards Grid -->
+        <div class="grid grid-cols-2 gap-3">
+          <!-- Card 1: Screen Time -->
+          <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+            <div class="text-xs text-slate-400 flex items-center gap-1.5 mb-1">
+              <span class="text-rose-400">⏱</span>
+              <span>Screen Time</span>
+            </div>
+            <div id="stat-screen-time" class="text-lg font-bold text-white font-mono tabular-nums">28m 10s</div>
+            <div id="stat-avg-dwell" class="text-[11px] text-slate-400 mt-1">Avg 18.2s / reel</div>
+          </div>
+
+          <!-- Card 2: Screen Distance -->
+          <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+            <div class="text-xs text-slate-400 flex items-center gap-1.5 mb-1">
+              <span class="text-cyan-400">📏</span>
+              <span>Scroll Distance</span>
+            </div>
+            <div id="stat-distance" class="text-lg font-bold text-white font-mono tabular-nums">5.5 m</div>
+            <div id="stat-feet" class="text-[11px] text-slate-400 mt-1">~18 feet scrolled</div>
+          </div>
+
+          <!-- Card 3: Rapid Skips -->
+          <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+            <div class="text-xs text-slate-400 flex items-center gap-1.5 mb-1">
+              <span class="text-amber-400">⚡</span>
+              <span>Fast Skips (&lt;3s)</span>
+            </div>
+            <div id="stat-skips" class="text-lg font-bold text-white font-mono tabular-nums">7</div>
+            <div id="stat-skips-pct" class="text-[11px] text-slate-400 mt-1">18% rapid skips</div>
+          </div>
+
+          <!-- Card 4: Binge Velocity -->
+          <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+            <div class="text-xs text-slate-400 flex items-center gap-1.5 mb-1">
+              <span class="text-violet-400">📈</span>
+              <span>Binge Velocity</span>
+            </div>
+            <div id="stat-velocity" class="text-lg font-bold text-white font-mono tabular-nums">2.6</div>
+            <div class="text-[11px] text-slate-400 mt-1">reels / minute</div>
+          </div>
+        </div>
+
+        <!-- Quick Log Bar -->
+        <div class="p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800 flex items-center justify-between">
+          <div>
+            <span class="text-xs font-semibold text-slate-200 block">Accessibility Log Test</span>
+            <span class="text-[11px] text-slate-400">Simulate scroll hook detection</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button onclick="quickAddReels(1)" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 font-medium active:scale-95 transition-all">+1 Reel</button>
+            <button onclick="quickAddReels(5)" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 font-medium active:scale-95 transition-all">+5 Reels</button>
+          </div>
+        </div>
+
+        <!-- Content Categories Strip -->
+        <div class="p-4 rounded-2xl bg-slate-900/50 border border-slate-800 space-y-2.5">
+          <div class="flex items-center justify-between text-xs">
+            <span class="font-semibold text-white">Content Categories</span>
+            <button onclick="switchTab('analytics')" class="text-rose-400 hover:text-rose-300">View All →</button>
+          </div>
+          <div class="w-full h-2 rounded-full overflow-hidden flex bg-slate-800">
+            <div class="h-full bg-amber-500 w-[35%]" title="Humor"></div>
+            <div class="h-full bg-pink-500 w-[25%]" title="Brainrot"></div>
+            <div class="h-full bg-blue-500 w-[20%]" title="Tech"></div>
+            <div class="h-full bg-emerald-500 w-[12%]" title="Fitness"></div>
+            <div class="h-full bg-orange-500 w-[8%]" title="Food"></div>
+          </div>
+          <div class="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+            <span>😂 Humor (35%)</span>
+            <span>🧠 Brainrot (25%)</span>
+            <span>📱 Tech (20%)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB 2: WEEKLY ANALYTICS ================= -->
+      <section id="tab-analytics" class="hidden p-5 space-y-5">
+        <div>
+          <span class="text-xs text-slate-400 font-medium">Trends & Reports</span>
+          <h1 class="text-xl font-bold tracking-tight text-white">Weekly Statistics</h1>
+        </div>
+
+        <!-- 7-Day Bar Chart Container -->
+        <div class="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-3 shadow-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-semibold text-white">Daily Reels Scrolled</span>
+            <span class="text-[11px] font-mono text-rose-400">Limit: <span class="chart-limit-val">45</span></span>
+          </div>
+          <div class="h-48 w-full relative">
+            <canvas id="weeklyChart"></canvas>
+          </div>
+          <div class="p-2.5 rounded-xl bg-slate-950/70 text-xs text-slate-400 flex items-center justify-between">
+            <span>Tap any bar to inspect daily stats</span>
+            <span id="selected-day-details" class="font-mono text-white">Thu: 38 reels · 28m</span>
+          </div>
+        </div>
+
+        <!-- 3 Metric Tiles -->
+        <div class="grid grid-cols-3 gap-2">
+          <div class="p-3 rounded-2xl bg-slate-900/60 border border-slate-800">
+            <span class="text-[10px] text-slate-400 block">Weekly Total</span>
+            <span id="weekly-total-reels" class="text-lg font-bold text-white font-mono">312</span>
+            <span class="text-[10px] text-slate-400 block mt-0.5">~44/day</span>
+          </div>
+          <div class="p-3 rounded-2xl bg-slate-900/60 border border-slate-800">
+            <span class="text-[10px] text-slate-400 block">Screen Time</span>
+            <span id="weekly-total-time" class="text-lg font-bold text-white font-mono">3h 40m</span>
+            <span class="text-[10px] text-slate-400 block mt-0.5">on Reels</span>
+          </div>
+          <div class="p-3 rounded-2xl bg-slate-900/60 border border-slate-800">
+            <span class="text-[10px] text-slate-400 block">Mindful Days</span>
+            <span id="weekly-mindful-days" class="text-lg font-bold text-emerald-400 font-mono">5 / 7</span>
+            <span class="text-[10px] text-slate-400 block mt-0.5">under limit</span>
+          </div>
+        </div>
+
+        <!-- Hourly 24-Hour Binge Heatmap -->
+        <div class="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-semibold text-white">When Do You Scroll? (24h)</span>
+            <span class="text-xs text-amber-400 font-mono">Peak: 9PM - 11PM</span>
+          </div>
+          <div class="h-28 w-full">
+            <canvas id="hourlyChart"></canvas>
+          </div>
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            <strong class="text-rose-400">Night binge warning:</strong> Over 60% of reels are scrolled late at night, disrupting natural melatonin and circadian sleep rhythm.
+          </p>
+        </div>
+      </section>
+
+      <!-- ================= TAB 3: REEL SIMULATOR ================= -->
+      <section id="tab-simulator" class="hidden p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <span class="text-xs text-slate-400 font-medium">Interactive Demo</span>
+            <h2 class="text-lg font-bold text-white">Instagram Reels Hook</h2>
+          </div>
+          <div class="text-right">
+            <span id="sim-counter" class="text-xs text-rose-400 font-mono font-bold">38 / 45</span>
+            <span class="text-[10px] text-slate-400 block">reels today</span>
+          </div>
+        </div>
+
+        <!-- Simulated Reel Video Container -->
+        <div class="relative w-full h-[520px] rounded-3xl overflow-hidden bg-black select-none border border-slate-800">
+          <div id="sim-gradient-bg" class="absolute inset-0 bg-gradient-to-b from-indigo-950 via-slate-900 to-rose-950 flex items-center justify-center">
+            <div class="w-40 h-40 rounded-full bg-rose-500/10 blur-2xl animate-pulse"></div>
+            <div class="p-4 rounded-full bg-black/40 text-white/60">
+              <svg class="w-8 h-8 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+          </div>
+
+          <!-- Top Accessibility HUD -->
+          <div class="absolute top-3 left-3 right-3 z-30 flex items-center justify-between text-[11px] bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-slate-200">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              <span class="font-mono text-emerald-300">Accessibility Hook Active</span>
+            </div>
+            <div class="font-mono text-slate-300">
+              Dwell: <span id="sim-dwell-timer" class="text-white font-bold">00:00</span>
+            </div>
+          </div>
+
+          <!-- Floating Accessibility Toast -->
+          <div id="sim-toast" class="hidden absolute top-14 left-4 right-4 z-40 bg-slate-900/95 border border-slate-700 text-white text-xs px-3.5 py-2 rounded-xl shadow-xl backdrop-blur-md flex items-center justify-between">
+            <span id="sim-toast-msg" class="font-medium text-[11px]">✓ Reel logged</span>
+            <span class="text-[10px] text-slate-400 font-mono">Auto-detected</span>
+          </div>
+
+          <!-- Right Action Bar -->
+          <div class="absolute right-3 bottom-14 z-20 flex flex-col items-center gap-4 text-white text-[10px]">
+            <button onclick="toggleLike()" class="p-2.5 rounded-full bg-black/30 backdrop-blur-sm active:scale-75 transition-transform">
+              <svg id="sim-heart-icon" class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+            </button>
+            <span>48.2K</span>
+            <button class="p-2.5 rounded-full bg-black/30 backdrop-blur-sm">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            </button>
+            <span>1.2K</span>
+          </div>
+
+          <!-- Bottom Creator Info -->
+          <div class="absolute left-3 right-16 bottom-3 z-20 text-white space-y-1.5">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-yellow-500 to-rose-500 p-[1.5px]">
+                <div class="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-[10px] font-bold">@</div>
+              </div>
+              <span id="sim-creator" class="text-xs font-bold">@marcus_tech_reviews</span>
+            </div>
+            <p id="sim-caption" class="text-xs text-slate-200 line-clamp-2">Why the new foldables are changing mobile multitasking forever 📱⚡ #tech #android</p>
+            <div class="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
+              <span>🎵</span>
+              <span id="sim-audio" class="truncate max-w-[200px]">Original Audio - marcus_tech</span>
+            </div>
+          </div>
+
+          <!-- Swipe Button Trigger -->
+          <div class="absolute top-1/2 -translate-y-1/2 left-3 z-30">
+            <button onclick="handleNextReel()" class="p-3 rounded-full bg-rose-600 text-white shadow-xl hover:bg-rose-500 active:scale-90 transition-all animate-bounce" title="Swipe to next reel">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <p class="text-[11px] text-slate-400 text-center">Tap the pink arrow button to swipe down. Dwell time & skips will automatically sync with your today dashboard.</p>
+      </section>
+
+      <!-- ================= TAB 4: SETTINGS & LIMITS ================= -->
+      <section id="tab-settings" class="hidden p-5 space-y-5">
+        <div>
+          <span class="text-xs text-slate-400 font-medium">Preferences</span>
+          <h1 class="text-xl font-bold tracking-tight text-white">Limits & Config</h1>
+        </div>
+
+        <div class="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-300 font-medium">Daily Reels Target Limit</span>
+            <span id="setting-limit-display" class="text-rose-400 font-mono font-bold text-sm">45 reels</span>
+          </div>
+          <input type="range" id="input-limit" min="10" max="150" step="5" value="45" oninput="updateDailyLimit(this.value)" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-500">
+          <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+            <span>10 (Strict)</span>
+            <span>45 (Moderate)</span>
+            <span>150 (Lenient)</span>
+          </div>
+        </div>
+
+        <div class="p-5 rounded-3xl bg-slate-900/80 border border-slate-800 space-y-3">
+          <span class="text-xs font-semibold text-white block">Bedtime Blackout Window</span>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-300">Alert late night scrolling</span>
+            <span class="text-indigo-400 font-mono">10:30 PM - 06:30 AM</span>
+          </div>
+        </div>
+
+        <!-- CSV Export & Reset Data -->
+        <div class="space-y-2 pt-2">
+          <button onclick="exportCSV()" class="w-full py-3 px-4 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-white flex items-center justify-center gap-2 active:scale-98 transition-all">
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>Download All Data as CSV</span>
+          </button>
+          <button onclick="resetData()" class="w-full py-2.5 px-4 text-xs font-medium text-slate-400 hover:text-rose-400 transition-colors">
+            Reset Data to Initial State
+          </button>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Android Bottom Navigation Bar -->
+    <nav class="sticky bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-md border-t border-slate-900">
+      <div class="grid grid-cols-4 items-center h-16 px-1">
+        <!-- Today Tab -->
+        <button onclick="switchTab('dashboard')" id="nav-btn-dashboard" class="flex flex-col items-center justify-center py-1 text-rose-400 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          <span class="text-[11px] font-medium mt-1">Today</span>
+        </button>
+
+        <!-- Weekly Tab -->
+        <button onclick="switchTab('analytics')" id="nav-btn-analytics" class="flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          <span class="text-[11px] font-medium mt-1">Weekly</span>
+        </button>
+
+        <!-- Simulator Tab -->
+        <button onclick="switchTab('simulator')" id="nav-btn-simulator" class="flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition-colors relative">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v16a2 2 0 002 2z"/></svg>
+          <span class="text-[11px] font-medium mt-1">Simulator</span>
+          <span class="absolute top-1 right-5 w-2 h-2 rounded-full bg-rose-500"></span>
+        </button>
+
+        <!-- Settings Tab -->
+        <button onclick="switchTab('settings')" id="nav-btn-settings" class="flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+          <span class="text-[11px] font-medium mt-1">Limits</span>
+        </button>
+      </div>
+
+      <!-- Android Navigation Bar Pill -->
+      <div class="w-full flex justify-center pb-2 pt-0.5">
+        <div class="w-32 h-1 rounded-full bg-slate-700/80"></div>
+      </div>
+    </nav>
+
+    <!-- Mindful Intervention Modal -->
+    <div id="intervention-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      <div class="w-full max-w-xs rounded-3xl bg-slate-900 border border-slate-800 p-6 text-center space-y-4 shadow-2xl">
+        <div class="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 mx-auto flex items-center justify-center text-xl">🧘</div>
+        <div class="space-y-1">
+          <h3 class="text-base font-bold text-white">Daily Limit Reached!</h3>
+          <p id="modal-desc" class="text-xs text-slate-400">You have completed your daily quota of reels. Take a breath and step away from the feed.</p>
+        </div>
+        <button onclick="closeModal()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-white text-xs font-semibold shadow-lg">Close Instagram</button>
+        <button onclick="snoozeLimit(10)" class="w-full py-2 text-xs text-slate-400 hover:text-white">Snooze +10 Reels</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- JavaScript Application Logic -->
+  <script>
+    // --- Mock Data & Seed Generation ---
+    const SAMPLE_REELS = [
+      { creator: 'marcus_tech_reviews', caption: 'Why the new foldables are changing mobile multitasking forever 📱⚡', audio: 'Original Audio - marcus_tech', category: 'tech' },
+      { creator: 'daily_doggo_humor', caption: 'When he realizes we are driving to the vet and not the dog park 😭🐕', audio: 'Funny background track - meme beats', category: 'humor' },
+      { creator: 'satisfying_sand_lab', caption: 'Cutting kinetic sand under macro 4K lens. Headphone warning! 🎧✨', audio: 'ASMR Studio Binaural Audio', category: 'brainrot' },
+      { creator: 'coach_ryan_fitness', caption: 'Stop doing lateral raises like this! Fix your shoulder angle in 3 steps 💪', audio: 'Workout Motivation High Tempo', category: 'fitness' },
+      { creator: 'tokyo_street_bites', caption: 'Late night ramen stall in Shinjuku serving 100-hour bone broth 🍜🔥', audio: 'Tokyo Lofi Beats - Rain Vibes', category: 'food' }
+    ];
+
+    let state = {
+      dailyLimit: 45,
+      todayReels: 38,
+      todaySeconds: 1690, // ~28 mins
+      fastSkips: 7,
+      streak: 5,
+      currentSimIndex: 0,
+      simDwellTimer: 0,
+      simTimerId: null,
+      history7Days: [
+        { day: 'Mon', reels: 32, seconds: 1400 },
+        { day: 'Tue', reels: 41, seconds: 1800 },
+        { day: 'Wed', reels: 52, seconds: 2300 },
+        { day: 'Thu', reels: 38, seconds: 1690 },
+        { day: 'Fri', reels: 44, seconds: 1950 },
+        { day: 'Sat', reels: 62, seconds: 2800 },
+        { day: 'Sun', reels: 38, seconds: 1690 }
+      ],
+      hourly24: [0, 0, 0, 0, 0, 1, 2, 4, 3, 2, 1, 4, 8, 5, 2, 3, 4, 6, 9, 12, 16, 18, 14, 5]
+    };
+
+    // Load from localStorage if present
+    const saved = localStorage.getItem('reeltrack_data');
+    if (saved) {
+      try { state = Object.assign(state, JSON.parse(saved)); } catch (e) {}
+    }
+
+    function saveState() {
+      localStorage.setItem('reeltrack_data', JSON.stringify(state));
+    }
+
+    // --- UI Update Functions ---
+    function renderDashboard() {
+      const limit = state.dailyLimit;
+      const count = state.todayReels;
+      const pct = Math.min(100, Math.round((count / limit) * 100));
+
+      document.getElementById('hero-reel-count').innerText = count;
+      document.getElementById('hero-limit-count').innerText = limit;
+      document.getElementById('hero-percent-label').innerText = `${pct}% limit`;
+      document.getElementById('sim-counter').innerText = `${count} / ${limit}`;
+      document.getElementById('setting-limit-display').innerText = `${limit} reels`;
+      document.getElementById('streak-count').innerText = state.streak;
+
+      // Update Gauge SVG Circle
+      const radius = 68;
+      const circumference = 2 * Math.PI * radius; // ~427.25
+      const offset = circumference - (pct / 100) * circumference;
+      const gaugeEl = document.getElementById('gauge-circle');
+      gaugeEl.style.strokeDasharray = circumference;
+      gaugeEl.style.strokeDashoffset = offset;
+
+      // Status text & colors
+      const titleEl = document.getElementById('gauge-status-title');
+      const subEl = document.getElementById('gauge-status-subtitle');
+      if (count >= limit) {
+        gaugeEl.setAttribute('stroke', '#f43f5e'); // rose
+        titleEl.innerHTML = '<span class="text-rose-400">⚠️ Daily Limit Reached</span>';
+        subEl.innerText = `${count - limit} reels over your target`;
+      } else if (count >= limit * 0.8) {
+        gaugeEl.setAttribute('stroke', '#f59e0b'); // amber
+        titleEl.innerHTML = '<span class="text-amber-400">Approaching Limit</span>';
+        subEl.innerText = `Only ${limit - count} reels remaining today`;
+      } else {
+        gaugeEl.setAttribute('stroke', '#10b981'); // emerald
+        titleEl.innerHTML = '<span class="text-emerald-400">✓ Mindful Scrolling</span>';
+        subEl.innerText = `${limit - count} reels left before daily limit`;
+      }
+
+      // Summary Cards calculations
+      const mins = Math.floor(state.todaySeconds / 60);
+      const secs = state.todaySeconds % 60;
+      document.getElementById('stat-screen-time').innerText = mins >= 60 ? `${Math.floor(mins/60)}h ${mins%60}m` : `${mins}m ${secs}s`;
+      
+      const avgDwell = count > 0 ? (state.todaySeconds / count).toFixed(1) : 0;
+      document.getElementById('stat-avg-dwell').innerText = `Avg ${avgDwell}s / reel`;
+
+      const dist = (count * 0.145).toFixed(1);
+      document.getElementById('stat-distance').innerText = `${dist} m`;
+      document.getElementById('stat-feet').innerText = `~${Math.round(dist * 3.28)} feet scrolled`;
+
+      document.getElementById('stat-skips').innerText = state.fastSkips;
+      const skipsPct = count > 0 ? Math.round((state.fastSkips / count) * 100) : 0;
+      document.getElementById('stat-skips-pct').innerText = `${skipsPct}% rapid skips`;
+
+      const activeMins = Math.max(1, Math.round(state.todaySeconds / 60));
+      document.getElementById('stat-velocity').innerText = (count / activeMins).toFixed(1);
+
+      // Weekly summary totals
+      const totalWeekly = state.history7Days.reduce((a, b) => a + b.reels, 0);
+      const totalSecondsWeekly = state.history7Days.reduce((a, b) => a + b.seconds, 0);
+      document.getElementById('weekly-total-reels').innerText = totalWeekly;
+      document.getElementById('weekly-total-time').innerText = `${Math.floor(totalSecondsWeekly / 3600)}h ${Math.floor((totalSecondsWeekly % 3600) / 60)}m`;
+      
+      const mindfulCount = state.history7Days.filter(d => d.reels <= state.dailyLimit).length;
+      document.getElementById('weekly-mindful-days').innerText = `${mindfulCount} / 7`;
+      document.querySelectorAll('.chart-limit-val').forEach(el => el.innerText = state.dailyLimit);
+    }
+
+    // --- Tab Switching ---
+    function switchTab(tabId) {
+      ['dashboard', 'analytics', 'simulator', 'settings'].forEach(id => {
+        document.getElementById(`tab-${id}`).classList.add('hidden');
+        const btn = document.getElementById(`nav-btn-${id}`);
+        btn.classList.remove('text-rose-400');
+        btn.classList.add('text-slate-400');
+      });
+
+      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`nav-btn-${tabId}`);
+      activeBtn.classList.remove('text-slate-400');
+      activeBtn.classList.add('text-rose-400');
+
+      if (tabId === 'analytics') {
+        renderCharts();
+      } else if (tabId === 'simulator') {
+        startSimulatorTimer();
+      }
+    }
+
+    // --- Quick Log Function ---
+    function quickAddReels(amount) {
+      state.todayReels += amount;
+      state.todaySeconds += amount * 18;
+      if (amount > 2) state.fastSkips += 2;
+      
+      if (state.todayReels >= state.dailyLimit) {
+        showModal();
+      }
+      saveState();
+      renderDashboard();
+    }
+
+    // --- Simulator Swiping Logic ---
+    function startSimulatorTimer() {
+      state.simDwellTimer = 0;
+      if (state.simTimerId) clearInterval(state.simTimerId);
+      state.simTimerId = setInterval(() => {
+        state.simDwellTimer++;
+        const s = String(state.simDwellTimer).padStart(2, '0');
+        document.getElementById('sim-dwell-timer').innerText = `00:${s}`;
+      }, 1000);
+    }
+
+    function handleNextReel() {
+      const dwell = Math.max(1, state.simDwellTimer);
+      state.todayReels += 1;
+      state.todaySeconds += dwell;
+      if (dwell < 3) state.fastSkips += 1;
+
+      // Toast notification
+      const toast = document.getElementById('sim-toast');
+      document.getElementById('sim-toast-msg').innerText = dwell < 3 ? `⚡ Fast Skip (${dwell}s) - Reel #${state.todayReels}` : `✓ Reel #${state.todayReels} logged (${dwell}s)`;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 2000);
+
+      // Advance reel content
+      state.currentSimIndex = (state.currentSimIndex + 1) % SAMPLE_REELS.length;
+      const next = SAMPLE_REELS[state.currentSimIndex];
+      document.getElementById('sim-creator').innerText = `@${next.creator}`;
+      document.getElementById('sim-caption').innerText = next.caption;
+      document.getElementById('sim-audio').innerText = next.audio;
+
+      // Check limit
+      if (state.todayReels >= state.dailyLimit) {
+        showModal();
+      }
+
+      saveState();
+      renderDashboard();
+      startSimulatorTimer();
+    }
+
+    function toggleLike() {
+      const icon = document.getElementById('sim-heart-icon');
+      icon.classList.toggle('fill-rose-500');
+      icon.classList.toggle('text-rose-500');
+    }
+
+    // --- Modals ---
+    function showModal() {
+      document.getElementById('intervention-modal').classList.remove('hidden');
+      if (window.confetti) {
+        confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
+      }
+    }
+    function closeModal() {
+      document.getElementById('intervention-modal').classList.add('hidden');
+    }
+    function snoozeLimit(extra) {
+      state.dailyLimit += extra;
+      saveState();
+      renderDashboard();
+      closeModal();
+    }
+
+    // --- Settings & Export ---
+    function updateDailyLimit(val) {
+      state.dailyLimit = parseInt(val, 10);
+      saveState();
+      renderDashboard();
+      if (window.weeklyChartInst) {
+        window.weeklyChartInst.destroy();
+        renderCharts();
+      }
+    }
+
+    function exportCSV() {
+      let csv = "Day,Reels_Count,Screen_Time_Seconds\n";
+      state.history7Days.forEach(d => {
+        csv += `${d.day},${d.reels},${d.seconds}\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `reels_screentime_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+    }
+
+    function resetData() {
+      if (confirm("Reset all reels history to defaults?")) {
+        localStorage.removeItem('reeltrack_data');
+        location.reload();
+      }
+    }
+
+    // --- Charts Rendering with Chart.js ---
+    let weeklyChartInst = null;
+    let hourlyChartInst = null;
+
+    function renderCharts() {
+      if (weeklyChartInst) weeklyChartInst.destroy();
+      if (hourlyChartInst) hourlyChartInst.destroy();
+
+      // Weekly Chart
+      const ctxWeekly = document.getElementById('weeklyChart').getContext('2d');
+      const labels = state.history7Days.map(d => d.day);
+      const dataReels = state.history7Days.map(d => d.reels);
+      const bgColors = dataReels.map(val => val > state.dailyLimit ? 'rgba(244, 63, 94, 0.85)' : 'rgba(99, 102, 241, 0.85)');
+
+      weeklyChartInst = new Chart(ctxWeekly, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: dataReels,
+            backgroundColor: bgColors,
+            borderRadius: 6,
+            barThickness: 24,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.raw} reels (${Math.round(ctx.raw * 0.45)} mins)`
+              }
+            }
+          },
+          scales: {
+            y: {
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { color: '#94a3b8', font: { family: 'Plus Jakarta Sans', size: 11 } }
+            }
+          },
+          onClick: (e, items) => {
+            if (items.length > 0) {
+              const idx = items[0].index;
+              const item = state.history7Days[idx];
+              document.getElementById('selected-day-details').innerText = `${item.day}: ${item.reels} reels · ${Math.floor(item.seconds/60)}m`;
+            }
+          }
+        }
+      });
+
+      // 24-Hour Binge Chart
+      const ctxHourly = document.getElementById('hourlyChart').getContext('2d');
+      const hours = Array.from({ length: 24 }, (_, i) => `${i}h`);
+      hourlyChartInst = new Chart(ctxHourly, {
+        type: 'line',
+        data: {
+          labels: hours,
+          datasets: [{
+            data: state.hourly24,
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245, 158, 11, 0.15)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { display: false },
+            x: {
+              grid: { display: false },
+              ticks: {
+                color: '#64748b',
+                font: { size: 9 },
+                callback: function(val, idx) {
+                  return idx % 6 === 0 ? hours[idx] : '';
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // --- Live System Clock ---
+    function updateClock() {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('live-clock').innerText = `${h}:${m}`;
+    }
+    setInterval(updateClock, 10000);
+    updateClock();
+
+    // Initial render
+    renderDashboard();
+  </script>
+</body>
+</html>
